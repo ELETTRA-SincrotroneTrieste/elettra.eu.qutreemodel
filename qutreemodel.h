@@ -45,11 +45,11 @@ public:
     void setSeparator(const QString& s) override;
     QString separator() const override;
 
-    bool addItem(const QString& s) override;
+    QModelIndex addItem(const QString& s) override;
     QModelIndex findItem(const QString &s) override;
     virtual QList<QModelIndex> findItems(const QString& search, int match_mode = Qt::MatchContains, int role = Qt::DisplayRole) const override;
     virtual QList<QModelIndex> itemsWithChildren(const QModelIndex &parent) override;
-    virtual QString printItem(const QModelIndex& idx) override;
+    virtual QString itemRepr(const QModelIndex& idx) override;
 
     virtual QAbstractItemModel *qmodel() override;
 
@@ -57,9 +57,9 @@ private:
     void setupModelData(const QStringList &lines, QuTreeItem *parent);
     QuTreeItem *getItem(const QModelIndex &index) const;
 
-    bool m_add_item(const QString& s, const QModelIndex &parent = QModelIndex());
+    QModelIndex m_add_item(const QString& s, const QModelIndex &parent = QModelIndex());
     QModelIndex m_find_item(const QString &s, int column = 0, const QModelIndex& parent = QModelIndex(), int role = Qt::DisplayRole);
-    QList<QModelIndex> m_find_items(const QString& search, int match_mode, const QModelIndex& parent, int role) const;
+    QList<QModelIndex> m_find_items(const QRegularExpression &re, int match_mode, const QModelIndex& parent, int role) const;
     QuTreeModelPrivate *d;
 };
 

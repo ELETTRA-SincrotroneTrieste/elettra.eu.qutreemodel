@@ -152,7 +152,6 @@ bool QuTreeModel::insertRows(int position, int rows, const QModelIndex &parent)
     return success;
 }
 
-//! [7]
 QModelIndex QuTreeModel::parent(const QModelIndex &index) const
 {
     if (!index.isValid())
@@ -166,7 +165,6 @@ QModelIndex QuTreeModel::parent(const QModelIndex &index) const
 
     return createIndex(parentItem->childNumber(), 0, parentItem);
 }
-//! [7]
 
 bool QuTreeModel::removeColumns(int position, int columns, const QModelIndex &parent)
 {
@@ -240,7 +238,25 @@ QModelIndex QuTreeModel::findItem(const QString& s) {
 
 QList<QModelIndex> QuTreeModel::findItems(const QString &search, int match_mode, int role) const {
     QList<QModelIndex> il;
-    il += m_find_items(search, match_mode, QModelIndex(), role);
+    QRegularExpression re(QString(".*%1.*").arg(search));
+    il += m_find_items(re, match_mode, QModelIndex(), role);
+    return il;
+}
+
+QList<QModelIndex> QuTreeModel::m_find_items(const QRegularExpression& re, int match_mode, const QModelIndex& parent, int role) const {
+    QList<QModelIndex> il;
+    QRegularExpressionMatch ma;
+    for(int i = 0; i < rowCount(parent); i++) {
+        for(int c = 0; c < columnCount(parent); c++) {
+            const QModelIndex &idx = index(i, c, parent);
+            ma = re.match(data(idx, role ).toString());
+            if(ma.hasMatch())
+                il.push_back(idx);
+            printf("r. %d c. %d searched %s next idx valid %s\n", i, c, qstoc(re.pattern()), idx.isValid() ? "YES" : "NO");
+            if(idx.isValid())
+                il += m_find_items(re, match_mode, idx, role);
+        }
+    }
     return il;
 }
 
@@ -258,41 +274,27 @@ QList<QModelIndex> QuTreeModel::itemsWithChildren(const QModelIndex &parent)  {
     return li;
 }
 
-QString QuTreeModel::printItem(const QModelIndex &idx) {
+QString QuTreeModel::itemRepr(const QModelIndex &idx) {
+    printf("printItem input item text is %s\n", qstoc(idx.data().toString()));
     QString s;
     QModelIndex i(idx);
     while(i.isValid()) {
-        s = i.data().toString() + (!s.isEmpty() ? "/" : "") + s;
+        printf("printItem is is valid and text is %s\n", qstoc(i.data().toString()));
+        s = i.data().toString()
+                + (!s.isEmpty()
+                   ? "/" : "")
+                + s;
         i = i.parent();
     }
     return s;
 }
 
-QList<QModelIndex> QuTreeModel::m_find_items(const QString& search, int match_mode, const QModelIndex& parent, int role) const {
-    QList<QModelIndex> il;
-    QRegularExpression re(QString(".*%1.*").arg(search));
-    QRegularExpressionMatch ma;
-    for(int i = 0; i < rowCount(parent); i++) {
-        for(int c = 0; c < columnCount(parent); c++) {
-            const QModelIndex &idx = index(i, c, parent);
-            ma = re.match(data(idx, role ).toString());
-            if(ma.hasMatch())
-                il.push_back(idx);
-            printf("r. %d c. %d searched %s next idx valid %s\n", i, c, qstoc(search), idx.isValid() ? "YES" : "NO");
-            if(idx.isValid())
-                il += m_find_items(search, match_mode, idx, role);
-        }
-    }
-    return il;
-}
-
-
-bool QuTreeModel::addItem(const QString &s) {
+QModelIndex QuTreeModel::addItem(const QString &s) {
     return m_add_item(s, QModelIndex());
 }
 
-bool QuTreeModel::m_add_item(const QString &s, const QModelIndex &parent) {
-    bool ok = false;
+QModelIndex QuTreeModel::m_add_item(const QString &s, const QModelIndex &parent) {
+    bool ok = true;
     printf("\e[0;32m+ %s under %s\e[0m\n", qstoc(s), parent.isValid() ? qstoc(parent.data(Qt::DisplayRole).toString()) : "-");
     QStringList p = s.split(d->separator, Qt::SkipEmptyParts);
     QModelIndex t;
@@ -300,28 +302,24 @@ bool QuTreeModel::m_add_item(const QString &s, const QModelIndex &parent) {
         t = m_find_item(p[0], 0, parent, Qt::DisplayRole);
         if(!t.isValid()) {
             if(!parent.isValid()) {
-                printf("\e[1;33minserting row at **ROOT** child count %d \t", d->rootItem->childCount());
                 ok = insertRows(d->rootItem->childCount(), 1, QModelIndex());
-//                ok = insertColumns(1, d->rootItem->columnCount() - 1, QModelIndex());
-                printf("success: %s\n", ok ? "YES": "NO");
-                t = index(d->rootItem->childCount() - 1, 0, QModelIndex());
-                ok = setData(t, p[0], Qt::DisplayRole);
-                printf("set data success: %s\e[0m\n", ok ? "YES": "NO");
+                if(ok) {
+                    t = index(d->rootItem->childCount() - 1, 0, QModelIndex());
+                    ok = setData(t, p[0], Qt::DisplayRole);
+                }
             }
             else {
-                printf("\e[1;33minserting row at \e[1;35mDOWN\e[1;32m child count %d \t", rowCount(parent));
                 ok = insertRows(rowCount(parent), 1, parent);
-//                ok = insertColumns(1, d->rootItem->columnCount() - 1, parent);
-                printf("insert success: %s\t", ok ? "YES": "NO");
-                t = index(rowCount(parent) - 1, parent.column(), parent);
-                ok = setData(t, p[0], Qt::DisplayRole);
-                printf("set data success: %s\e[0m\n", ok ? "YES": "NO");
+                if(ok) {
+                    t = index(rowCount(parent) - 1, parent.column(), parent);
+                    ok = setData(t, p[0], Qt::DisplayRole);
+                }
             }
         }
-        if(p.size() > 1)
-            m_add_item(s.section('/', 1), t);
+        if(ok && p.size() > 1)
+            t = m_add_item(s.section('/', 1), t);
     }
-    return ok;
+    return t;
 }
 
 QModelIndex QuTreeModel::m_find_item(const QString &s, int column, const QModelIndex &parent, int role)
