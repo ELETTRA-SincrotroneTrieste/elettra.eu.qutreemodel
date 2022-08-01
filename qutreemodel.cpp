@@ -296,7 +296,11 @@ QModelIndex QuTreeModel::addItem(const QString &s) {
 QModelIndex QuTreeModel::m_add_item(const QString &s, const QModelIndex &parent) {
     bool ok = true;
     printf("\e[0;32m+ %s under %s\e[0m\n", qstoc(s), parent.isValid() ? qstoc(parent.data(Qt::DisplayRole).toString()) : "-");
+#if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
+    QStringList p = s.split(d->separator, QString::SkipEmptyParts);
+#else
     QStringList p = s.split(d->separator, Qt::SkipEmptyParts);
+#endif
     QModelIndex t;
     if(p.size() > 0) {
         t = m_find_item(p[0], 0, parent, Qt::DisplayRole);
@@ -329,7 +333,12 @@ QModelIndex QuTreeModel::m_find_item(const QString &s, int column, const QModelI
     if(parent.isValid())
         printf(" (%s)\n", qstoc(parent.data(Qt::DisplayRole).toString()));
     else printf("\n");
-    const QStringList& p = s.split(d->separator, Qt::SkipEmptyParts);
+
+#if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
+    const QStringList& p = s.split(d->separator, QString::SkipEmptyParts);
+#else
+   const QStringList& p = s.split(d->separator, Qt::SkipEmptyParts);
+#endif
     assert(p.size() > 0);
 
     if(parent.isValid() && parent.data(role).toString() == p[0])
@@ -384,8 +393,13 @@ void QuTreeModel::setupModelData(const QStringList &lines, QuTreeItem *parent)
 
         if (!lineData.isEmpty()) {
             // Read the column data from the rest of the line.
+#if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
+            const QStringList columnStrings =
+                    lineData.split(QLatin1Char('\t'), QString::SkipEmptyParts);
+#else
             const QStringList columnStrings =
                     lineData.split(QLatin1Char('\t'), Qt::SkipEmptyParts);
+#endif
             QVector<QVariant> columnData;
             columnData.reserve(columnStrings.size());
             for (const QString &columnString : columnStrings)
