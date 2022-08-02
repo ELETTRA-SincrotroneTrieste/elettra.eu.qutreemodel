@@ -252,7 +252,7 @@ QList<QModelIndex> QuTreeModel::m_find_items(const QRegularExpression& re, int m
             ma = re.match(data(idx, role ).toString());
             if(ma.hasMatch())
                 il.push_back(idx);
-            printf("r. %d c. %d searched %s next idx valid %s\n", i, c, qstoc(re.pattern()), idx.isValid() ? "YES" : "NO");
+//            printf("r. %d c. %d searched %s next idx valid %s\n", i, c, qstoc(re.pattern()), idx.isValid() ? "YES" : "NO");
             if(idx.isValid())
                 il += m_find_items(re, match_mode, idx, role);
         }
@@ -275,11 +275,9 @@ QList<QModelIndex> QuTreeModel::itemsWithChildren(const QModelIndex &parent)  {
 }
 
 QString QuTreeModel::itemRepr(const QModelIndex &idx) {
-    printf("printItem input item text is %s\n", qstoc(idx.data().toString()));
     QString s;
     QModelIndex i(idx);
     while(i.isValid()) {
-        printf("printItem is is valid and text is %s\n", qstoc(i.data().toString()));
         s = i.data().toString()
                 + (!s.isEmpty()
                    ? "/" : "")
@@ -295,7 +293,7 @@ QModelIndex QuTreeModel::addItem(const QString &s) {
 
 QModelIndex QuTreeModel::m_add_item(const QString &s, const QModelIndex &parent) {
     bool ok = true;
-    printf("\e[0;32m+ %s under %s\e[0m\n", qstoc(s), parent.isValid() ? qstoc(parent.data(Qt::DisplayRole).toString()) : "-");
+    cuprintf("\e[0;32m+ %s under %s\e[0m\n", qstoc(s), parent.isValid() ? qstoc(parent.data(Qt::DisplayRole).toString()) : "-");
 #if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
     QStringList p = s.split(d->separator, QString::SkipEmptyParts);
 #else
@@ -328,11 +326,11 @@ QModelIndex QuTreeModel::m_add_item(const QString &s, const QModelIndex &parent)
 
 QModelIndex QuTreeModel::m_find_item(const QString &s, int column, const QModelIndex &parent, int role)
 {
-    printf("   searching for %s under %s with %d children", qstoc(s),
-           parent.isValid() ? qstoc(parent.data(Qt::DisplayRole).toString()) : "INVALID", parent.isValid() ? rowCount(parent) : -1);
-    if(parent.isValid())
-        printf(" (%s)\n", qstoc(parent.data(Qt::DisplayRole).toString()));
-    else printf("\n");
+//    printf("   searching for %s under %s with %d children", qstoc(s),
+//           parent.isValid() ? qstoc(parent.data(Qt::DisplayRole).toString()) : "INVALID", parent.isValid() ? rowCount(parent) : -1);
+//    if(parent.isValid())
+//        printf(" (%s)\n", qstoc(parent.data(Qt::DisplayRole).toString()));
+//    else printf("\n");
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
     const QStringList& p = s.split(d->separator, QString::SkipEmptyParts);
@@ -346,10 +344,10 @@ QModelIndex QuTreeModel::m_find_item(const QString &s, int column, const QModelI
 
     if(!parent.isValid()) {
         for(int i = 0; i < d->rootItem->childCount(); i++) {
-            printf("      \e[1,33m searching %s under top level items %d text %s\e[0m\n",
-                   qstoc( p[0]),
-                    d->rootItem->childCount(),
-                    qstoc(d->rootItem->child(i)->data(0, Qt::DisplayRole).toString()));
+//            printf("      \e[1,33m searching %s under top level items %d text %s\e[0m\n",
+//                   qstoc( p[0]),
+//                    d->rootItem->childCount(),
+//                    qstoc(d->rootItem->child(i)->data(0, Qt::DisplayRole).toString()));
             QModelIndex idx = index(i, column, QModelIndex());
             if(idx.data(role).toString() == p[0])
                 return s.count('/') > 0 ? m_find_item(s.section('/', 1), 0, idx) : idx;
@@ -357,17 +355,17 @@ QModelIndex QuTreeModel::m_find_item(const QString &s, int column, const QModelI
     }
     else {
         for(int i = 0; i < rowCount(parent); i++) {
-            printf("      \e[1,36m searching %s under item with %d children text %s\e[0m\n",
-                   qstoc( p[0]),
-                    rowCount(parent),
-                    qstoc(index(i, 0, parent).data(Qt::DisplayRole).toString()));
+//            printf("      \e[1,36m searching %s under item with %d children text %s\e[0m\n",
+//                   qstoc( p[0]),
+//                    rowCount(parent),
+//                    qstoc(index(i, 0, parent).data(Qt::DisplayRole).toString()));
 
             if(index(i, parent.column(), parent).data(role) == p[0])
                 return s.count('/') > 0 ? m_find_item(s.section('/', 1), 0, index(i, parent.column(), parent)) : index(i, parent.column(), parent);
         }
     }
-    printf("   \e[1;31m no item found under parent %s while searching %s\e[0m\n",
-           parent.isValid() ? qstoc(parent.data(Qt::DisplayRole).toString()) : "-",  qstoc(s));
+//    printf("   \e[1;31m no item found under parent %s while searching %s\e[0m\n",
+//           parent.isValid() ? qstoc(parent.data(Qt::DisplayRole).toString()) : "-",  qstoc(s));
     return QModelIndex();
 }
 
