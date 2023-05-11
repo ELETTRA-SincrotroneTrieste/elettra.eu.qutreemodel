@@ -47,6 +47,7 @@ public:
 
     QModelIndex addItem(const QString& s) override;
     QModelIndex findItem(const QString &s) override;
+    QModelIndex removeItem(const QString& s) override;
     virtual QList<QModelIndex> findItems(const QString& search, int match_mode = Qt::MatchContains, int role = Qt::DisplayRole) const override;
     virtual QList<QModelIndex> itemsWithChildren(const QModelIndex &parent) override;
     virtual QString itemRepr(const QModelIndex& idx) override;

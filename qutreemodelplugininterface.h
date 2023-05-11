@@ -27,6 +27,13 @@ public:
     virtual QModelIndex addItem(const QString& s) = 0;
 
     /*!
+     * \brief find an item matching the given input string and remove it
+     * \param s a string made up of sections separated by "/" or another separator specified with setSeparator
+     * \return the item immediately above the removed one, if possible
+     */
+    virtual QModelIndex removeItem(const QString &s) = 0;
+
+    /*!
      * \brief find an item matching the given input string
      * \param s a string made up of sections separated by "/" or another separator specified with setSeparator
      * \return the *leaf* QModelIndex corresponding to the *last section* of *s* if *s* has a match. An invalid

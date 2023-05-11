@@ -236,6 +236,20 @@ QModelIndex QuTreeModel::findItem(const QString& s) {
 
 }
 
+// remove the item matching exactly s
+// return the item above the removed one if possible
+QModelIndex QuTreeModel::removeItem(const QString &s) {
+    const QModelIndex& ri = findItem(s);
+    const QModelIndex& parent = ri.parent();
+    if(ri.isValid()) {
+        removeRows(ri.row(), 1, ri.parent());
+    }
+    if(parent.isValid()) {
+        return index(rowCount(parent) - 1, 0, parent);
+    }
+    return QModelIndex();
+}
+
 QList<QModelIndex> QuTreeModel::findItems(const QString &search, int match_mode, int role) const {
     QList<QModelIndex> il;
     QRegularExpression re(QString(".*%1.*").arg(search));
