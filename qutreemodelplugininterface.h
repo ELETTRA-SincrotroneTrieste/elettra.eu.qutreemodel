@@ -13,6 +13,7 @@ class QAbstractItemModel;
 
 class QuTreeItem;
 class QuTreeModelPrivate;
+class QAbstractItemView;
 
 class QuTreeModelI {
 public:
@@ -44,12 +45,32 @@ public:
     /*!
      * \brief recursively find all items matching the given search string.
      * \param search the string to be searched across all children recursively
+     * \param view if not null, the found items are highlighted (and parents expanded)
      * \param match_mode specify the match criterion. The default is Qt::MatchContains, and it's currently the
      *        only supported mode.
      * \param role match against data specified in the Qt item data role. Default: DisplayRole
      * \return a list of all QModelIndex matching the search pattern and the other criteria.
      */
-    virtual QList<QModelIndex> findItems(const QString& search, int match_mode = Qt::MatchContains, int role = Qt::DisplayRole) const = 0;
+    virtual QList<QModelIndex> findItems(const QString& search, int min_pattern_len, QAbstractItemView* view, int match_mode = Qt::MatchContains, int role = Qt::DisplayRole) = 0;
+
+    /*!
+     * \brief select an item based on the string match
+     * \param match string to match the item exactly
+     * \param view a pointer to the view, used to expand the parents of the found item
+     * \return the index found and selected  (only the first match is selected and returned)
+     */
+    virtual QModelIndex select(const QString& match, QAbstractItemView *view) = 0;
+
+    /*!
+     * \brief expand the leaf's parents
+     * \param leaf the model index which parents shall be expanded
+     * \param view the QAbstractItemView to operate on in order to expand the items
+     */
+    virtual void expand(const QModelIndex& leaf, QAbstractItemView* view) const = 0;
+
+    virtual void highlight(const QModelIndex &mi)  = 0;
+
+    virtual void clearHighlight(const QModelIndex &mi)  = 0;
 
     /*!
      * \brief return the list of indexes (below the given parent) that have children.
@@ -64,7 +85,20 @@ public:
      * \param idx the idex leaf
      * \return string representation of the item from the root to idx
      */
-    virtual QString itemRepr(const QModelIndex& idx) = 0;
+    virtual QString itemRepr(const QModelIndex& idx) const = 0;
+
+    /*!
+     * \brief return all items as list of strings
+     * \return all items as list of strings
+     *
+     * \par example
+     *
+     * "a/b/x", "a/b/y", "a/c/x", "a/c/z", "a/d/w", "a/e/f/g"
+     *
+     * Each leaf (item without children) is walked up in the parent tree to form an element
+     *
+     */
+    virtual QStringList items() const = 0;
 
     /*!
      * \brief returns the QAbstractItemModel in use
@@ -87,7 +121,7 @@ public:
 };
 
 /** \brief Interface for a plugin implementing a tree item model that can be used by custom
- *         tree views or QTreeView or QTreeWidget and so on.
+ *         tree views or QAbstractItemView or QTreeWidget and so on.
  *
  * \paragraph Description
  *
@@ -109,7 +143,7 @@ public:
         }
         // expand all tree
         foreach(const QModelIndex& i, m_model_i->itemsWithChildren(QModelIndex()))
-            findChild<QTreeView *>()->expand(i);
+            findChild<QAbstractItemView *>()->expand(i);
     }
  * \endcode
  *
@@ -122,14 +156,14 @@ public:
             // use itemRepr to print a representation of the item as string fields + separator
             printf("%d,%d, %s\n", i.row(), i.column(), qstoc(m_model_i->itemRepr(i)));
             // expand the found item and all its parent items
-            findChild<QTreeView *>()->expand(i);
+            findChild<QAbstractItemView *>()->expand(i);
             QModelIndex p(i.parent());
             while(p.isValid()) {
-                findChild<QTreeView *>()->expand(p);
+                findChild<QAbstractItemView *>()->expand(p);
                 p = p.parent();
         }
     }
-    findChild<QTreeView *>()->keyboardSearch(s);
+    findChild<QAbstractItemView *>()->keyboardSearch(s);
 }
  * \endcode
  *

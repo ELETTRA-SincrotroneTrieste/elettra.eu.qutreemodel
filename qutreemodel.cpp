@@ -69,7 +69,6 @@ QuTreeModel::QuTreeModel(const QStringList &headers, QObject *parent)
     QVector<QVariant> rootData;
     for (const QString &header : headers)
         rootData << header;
-
     d->rootItem = new QuTreeItem(rootData);
 }
 QuTreeModel::~QuTreeModel() {
@@ -233,7 +232,6 @@ bool QuTreeModel::setHeaderData(int section, Qt::Orientation orientation,
 
 QModelIndex QuTreeModel::findItem(const QString& s) {
     return m_find_item(s, 0, QModelIndex(), Qt::DisplayRole);
-
 }
 
 // remove the item matching exactly s
@@ -244,34 +242,80 @@ QModelIndex QuTreeModel::removeItem(const QString &s) {
     if(ri.isValid()) {
         removeRows(ri.row(), 1, ri.parent());
     }
-    if(parent.isValid()) {
+    if(rowCount(parent) > ri.row())
+        return index(ri.row() + 1, 0, parent);
+    else if(parent.isValid()) {
         return index(rowCount(parent) - 1, 0, parent);
     }
     return QModelIndex();
 }
 
-QList<QModelIndex> QuTreeModel::findItems(const QString &search, int match_mode, int role) const {
+void QuTreeModel::expand(const QModelIndex &leaf, QAbstractItemView* view) const {
+    QModelIndex p(leaf.parent());
+    while(p.isValid()) {
+        if(qobject_cast<QTreeView*>(view))
+            qobject_cast<QTreeView *>(view)->expand(p);
+        p = p.parent();
+    }
+}
+
+QModelIndex QuTreeModel::select(const QString &match, QAbstractItemView *view) {
+    const QModelIndex &i = m_find_item(match);
+    if(i.isValid()) {
+        expand(i, view);
+        QItemSelectionModel *sm = view->selectionModel();
+        sm->clearSelection();
+        sm->select(i, QItemSelectionModel::Select);
+        view->scrollTo(i);
+        return i;
+    }
+    return QModelIndex();
+}
+
+QList<QModelIndex> QuTreeModel::findItems(const QString &search, int min_pattern_len, QAbstractItemView* view, int match_mode, int role) {
     QList<QModelIndex> il;
-    QRegularExpression re(QString(".*%1.*").arg(search));
-    il += m_find_items(re, match_mode, QModelIndex(), role);
+    QRegularExpression re(QString("%1").arg(search));
+    il += m_find_items(re, min_pattern_len, view, match_mode, QModelIndex(), role);
     return il;
 }
 
-QList<QModelIndex> QuTreeModel::m_find_items(const QRegularExpression& re, int match_mode, const QModelIndex& parent, int role) const {
+QList<QModelIndex> QuTreeModel::m_find_items(const QRegularExpression& re, int min_pattern_len, QAbstractItemView* view, int match_mode, const QModelIndex& parent, int role) {
     QList<QModelIndex> il;
     QRegularExpressionMatch ma;
     for(int i = 0; i < rowCount(parent); i++) {
         for(int c = 0; c < columnCount(parent); c++) {
             const QModelIndex &idx = index(i, c, parent);
-            ma = re.match(data(idx, role ).toString());
-            if(ma.hasMatch())
-                il.push_back(idx);
-//            printf("r. %d c. %d searched %s next idx valid %s\n", i, c, qstoc(re.pattern()), idx.isValid() ? "YES" : "NO");
+            if(re.pattern().length() >= min_pattern_len) {
+                ma = re.match(data(idx, role ).toString());
+                if(ma.hasMatch()) {
+                    il.push_back(idx);
+                    printf("QuTreeModel::m_find_items: re.pattern '%s' match '%s'\n", qstoc(re.pattern()),
+                           qstoc(ma.captured()));
+                    if(view && re.pattern().length() >= min_pattern_len) {
+                        expand(idx, view);
+                        highlight(idx);
+                    }
+                }
+            }
+            if(view && re.pattern().length() < min_pattern_len)
+                clearHighlight(idx);
+            //            printf("r. %d c. %d searched %s next idx valid %s\n", i, c, qstoc(re.pattern()), idx.isValid() ? "YES" : "NO");
             if(idx.isValid())
-                il += m_find_items(re, match_mode, idx, role);
+                il += m_find_items(re, min_pattern_len, view, match_mode, idx, role);
         }
     }
     return il;
+}
+
+int QuTreeModel::m_get_idx(const QString &s, const QModelIndex &parent) const {
+    int i = 0;
+    while(i < rowCount(parent) && strcmp(index(i, 0, parent).data().toString().toStdString().c_str(), s.toStdString().c_str()) < 0) {
+        const QString& i_s = index(i, 0, parent).data().toString();
+        pretty_pri("comparing new s '%s' with item '%s' at pos %d total rows child of '%s' %d",
+                   qstoc(s), qstoc(i_s), i, qstoc(parent.data().toString()), rowCount(parent));
+        i++;
+    }
+    return i;
 }
 
 QList<QModelIndex> QuTreeModel::itemsWithChildren(const QModelIndex &parent)  {
@@ -288,17 +332,47 @@ QList<QModelIndex> QuTreeModel::itemsWithChildren(const QModelIndex &parent)  {
     return li;
 }
 
-QString QuTreeModel::itemRepr(const QModelIndex &idx) {
+QString QuTreeModel::itemRepr(const QModelIndex &idx) const {
     QString s;
     QModelIndex i(idx);
     while(i.isValid()) {
         s = i.data().toString()
-                + (!s.isEmpty()
+            + (!s.isEmpty()
                    ? "/" : "")
-                + s;
+            + s;
         i = i.parent();
     }
     return s;
+}
+
+
+QList<QModelIndex> QuTreeModel::m_leaf_items(const QModelIndex &mi) const {
+    QList<QModelIndex> il;
+    if(mi.isValid() && rowCount(mi) == 0)
+        il.append(mi);
+    else {
+        for(int i = 0; i < rowCount(mi); i++)
+            il += m_leaf_items(index(i, 0, mi));
+    }
+    return il;
+}
+
+QStringList QuTreeModel::items() const {
+    QStringList r;
+    QList<QModelIndex> leaves = m_leaf_items(QModelIndex());
+    pretty_pri("items that are LEAVES:");
+    for(int i = 0; i < leaves.size(); i++) {
+        r << itemRepr(leaves[i]);
+    }
+    return r;
+}
+
+void QuTreeModel::highlight(const QModelIndex &mi)  {
+    setData(mi, QColor(Qt::green), Qt::BackgroundRole);
+}
+
+void QuTreeModel::clearHighlight(const QModelIndex &mi) {
+    setData(mi, QColor(Qt::white), Qt::BackgroundRole);
 }
 
 QModelIndex QuTreeModel::addItem(const QString &s) {
@@ -325,9 +399,10 @@ QModelIndex QuTreeModel::m_add_item(const QString &s, const QModelIndex &parent)
                 }
             }
             else {
-                ok = insertRows(rowCount(parent), 1, parent);
+                int idx = m_get_idx(p[0], parent);
+                ok = insertRows(idx, 1, parent);
                 if(ok) {
-                    t = index(rowCount(parent) - 1, parent.column(), parent);
+                    t = index(idx, parent.column(), parent);
                     ok = setData(t, p[0], Qt::DisplayRole);
                 }
             }
@@ -349,7 +424,7 @@ QModelIndex QuTreeModel::m_find_item(const QString &s, int column, const QModelI
 #if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
     const QStringList& p = s.split(d->separator, QString::SkipEmptyParts);
 #else
-   const QStringList& p = s.split(d->separator, Qt::SkipEmptyParts);
+    const QStringList& p = s.split(d->separator, Qt::SkipEmptyParts);
 #endif
     assert(p.size() > 0);
 
@@ -358,10 +433,10 @@ QModelIndex QuTreeModel::m_find_item(const QString &s, int column, const QModelI
 
     if(!parent.isValid()) {
         for(int i = 0; i < d->rootItem->childCount(); i++) {
-//            printf("      \e[1,33m searching %s under top level items %d text %s\e[0m\n",
-//                   qstoc( p[0]),
-//                    d->rootItem->childCount(),
-//                    qstoc(d->rootItem->child(i)->data(0, Qt::DisplayRole).toString()));
+            //            printf("      \e[1,33m searching %s under top level items %d text %s\e[0m\n",
+            //                   qstoc( p[0]),
+            //                    d->rootItem->childCount(),
+            //                    qstoc(d->rootItem->child(i)->data(0, Qt::DisplayRole).toString()));
             QModelIndex idx = index(i, column, QModelIndex());
             if(idx.data(role).toString() == p[0])
                 return s.count('/') > 0 ? m_find_item(s.section('/', 1), 0, idx) : idx;
@@ -369,17 +444,17 @@ QModelIndex QuTreeModel::m_find_item(const QString &s, int column, const QModelI
     }
     else {
         for(int i = 0; i < rowCount(parent); i++) {
-//            printf("      \e[1,36m searching %s under item with %d children text %s\e[0m\n",
-//                   qstoc( p[0]),
-//                    rowCount(parent),
-//                    qstoc(index(i, 0, parent).data(Qt::DisplayRole).toString()));
+            //            printf("      \e[1,36m searching %s under item with %d children text %s\e[0m\n",
+            //                   qstoc( p[0]),
+            //                    rowCount(parent),
+            //                    qstoc(index(i, 0, parent).data(Qt::DisplayRole).toString()));
 
             if(index(i, parent.column(), parent).data(role) == p[0])
                 return s.count('/') > 0 ? m_find_item(s.section('/', 1), 0, index(i, parent.column(), parent)) : index(i, parent.column(), parent);
         }
     }
-//    printf("   \e[1;31m no item found under parent %s while searching %s\e[0m\n",
-//           parent.isValid() ? qstoc(parent.data(Qt::DisplayRole).toString()) : "-",  qstoc(s));
+    //    printf("   \e[1;31m no item found under parent %s while searching %s\e[0m\n",
+    //           parent.isValid() ? qstoc(parent.data(Qt::DisplayRole).toString()) : "-",  qstoc(s));
     return QModelIndex();
 }
 
@@ -407,10 +482,10 @@ void QuTreeModel::setupModelData(const QStringList &lines, QuTreeItem *parent)
             // Read the column data from the rest of the line.
 #if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
             const QStringList columnStrings =
-                    lineData.split(QLatin1Char('\t'), QString::SkipEmptyParts);
+                lineData.split(QLatin1Char('\t'), QString::SkipEmptyParts);
 #else
             const QStringList columnStrings =
-                    lineData.split(QLatin1Char('\t'), Qt::SkipEmptyParts);
+                lineData.split(QLatin1Char('\t'), Qt::SkipEmptyParts);
 #endif
             QVector<QVariant> columnData;
             columnData.reserve(columnStrings.size());

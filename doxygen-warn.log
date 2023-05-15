@@ -1,1 +1,5 @@
-/home/giacomo/devel/utils/git/cppqtclients/elettra.eu.qutreemodel/qutreemodelplugininterface.h:93: warning: found paragraph command (id: 'Description') outside of subsubsection context!
+/home/giacomo/devel/utils/git/cppqtclients/elettra.eu.qutreemodel/qutreemodelplugininterface.h:47: warning: The following parameter of QuTreeModel::findItems(const QString &search, int min_pattern_len, QAbstractItemView *view, int match_mode=Qt::MatchContains, int role=Qt::DisplayRole) is not documented:
+  parameter 'min_pattern_len'
+/home/giacomo/devel/utils/git/cppqtclients/elettra.eu.qutreemodel/qutreemodelplugininterface.h:47: warning: The following parameter of QuTreeModelI::findItems(const QString &search, int min_pattern_len, QAbstractItemView *view, int match_mode=Qt::MatchContains, int role=Qt::DisplayRole)=0 is not documented:
+  parameter 'min_pattern_len'
+/home/giacomo/devel/utils/git/cppqtclients/elettra.eu.qutreemodel/qutreemodelplugininterface.h:127: warning: found paragraph command (id: 'Description') outside of subsubsection context!
