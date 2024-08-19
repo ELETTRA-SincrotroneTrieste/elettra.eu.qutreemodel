@@ -98,7 +98,19 @@ DISTFILES += \
 
 TARGET = qutreemodel-plugin
 TEMPLATE = lib
-CONFIG += plugin debug
+CONFIG += plugin
+
+isEmpty(buildtype) {
+        buildtype = release
+} else {
+    equals(buildtype, debug) {
+        message("")
+        message("debug build")
+        message("")
+    }
+}
+
+CONFIG += $${buildtype}
 
 SOURCES += \
     qutreemodel.cpp \
